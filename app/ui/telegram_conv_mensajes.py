@@ -143,6 +143,36 @@ class _ConvMensajesMixin:
     def _on_key_down(self, event):
         code = event.GetKeyCode()
         mods = event.GetModifiers()
+
+        # Atajos multimedia mientras se redacta (F1..F4 y F7..F10)
+        if mods == wx.MOD_NONE and code in (wx.WXK_F1, wx.WXK_F2, wx.WXK_F3, wx.WXK_F4,
+                                            wx.WXK_F7, wx.WXK_F8, wx.WXK_F9, wx.WXK_F10):
+            from app.services.media_player.player_service import player_service
+            if code == wx.WXK_F1:
+                player_service.retroceder(5.0)
+                return
+            elif code == wx.WXK_F2:
+                player_service.alternar_pausa()
+                return
+            elif code == wx.WXK_F3:
+                player_service.avanzar(5.0)
+                return
+            elif code == wx.WXK_F4:
+                player_service.detener_con_aviso()
+                return
+            elif code == wx.WXK_F7:
+                player_service.bajar_velocidad()
+                return
+            elif code == wx.WXK_F8:
+                player_service.subir_velocidad()
+                return
+            elif code == wx.WXK_F9:
+                player_service.bajar_volumen()
+                return
+            elif code == wx.WXK_F10:
+                player_service.subir_volumen()
+                return
+
         if code in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER) and mods == wx.MOD_CONTROL:
             self._on_enviar(None)
         elif code == wx.WXK_SPACE and mods == wx.MOD_CONTROL and self.chat_type in ("group", "supergroup"):
@@ -555,10 +585,54 @@ class _ConvMensajesMixin:
 
     def _on_msg_key(self, event):
         """Espacio: si el mensaje tiene botones de bot, abre el diálogo de botones; si no, reproduce/
-        pausa su audio. Ctrl+Espacio: marcar para compartir. Ctrl+Mayús+C: compartir.
-        Ctrl+I: describir imagen. Ctrl+T: traducir."""
+        pausa su audio. F1..F4, F7..F10, Shift+Flechas: controles multimedia directos."""
         code = event.GetKeyCode()
         mods = event.GetModifiers()
+
+        # Atajos multimedia desde la lista de mensajes (F1..F4, F7..F10 y Shift+Flechas)
+        if mods == wx.MOD_NONE:
+            from app.services.media_player.player_service import player_service
+            if code == wx.WXK_F1:
+                player_service.retroceder(5.0)
+                return
+            elif code == wx.WXK_F2:
+                player_service.alternar_pausa()
+                return
+            elif code == wx.WXK_F3:
+                player_service.avanzar(5.0)
+                return
+            elif code == wx.WXK_F4:
+                player_service.detener_con_aviso()
+                return
+            elif code == wx.WXK_F7:
+                player_service.bajar_velocidad()
+                return
+            elif code == wx.WXK_F8:
+                player_service.subir_velocidad()
+                return
+            elif code == wx.WXK_F9:
+                player_service.bajar_volumen()
+                return
+            elif code == wx.WXK_F10:
+                player_service.subir_volumen()
+                return
+        elif mods == wx.MOD_SHIFT:
+            from app.services.media_player.player_service import player_service
+            if code == wx.WXK_LEFT:
+                player_service.retroceder(5.0)
+                return
+            elif code == wx.WXK_RIGHT:
+                player_service.avanzar(5.0)
+                return
+        elif mods == (wx.MOD_CONTROL | wx.MOD_SHIFT):
+            from app.services.media_player.player_service import player_service
+            if code == wx.WXK_LEFT:
+                player_service.retroceder(30.0)
+                return
+            elif code == wx.WXK_RIGHT:
+                player_service.avanzar(30.0)
+                return
+
         if code == wx.WXK_SPACE and mods == wx.MOD_CONTROL:
             self._alternar_marca_compartir(self.lista_msgs.GetFocusedItem())
             return

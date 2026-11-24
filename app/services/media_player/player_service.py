@@ -223,6 +223,8 @@ class PlayerService:
         elif estado in ("pausado", "cargado", "detenido"):
             self.reproducir()
             speak(_("Reproduciendo."), interrupt=True)
+        else:
+            speak(_("No hay ningún medio reproduciéndose."), interrupt=True)
 
     def detener(self):
         """Detiene la reproducción actual."""
@@ -237,6 +239,8 @@ class PlayerService:
         if self.backend.obtener_estado() != "inactivo":
             self.detener()
             speak(_("Reproducción detenida."), interrupt=True)
+        else:
+            speak(_("No hay ningún medio reproduciéndose."), interrupt=True)
 
     def seek(self, segundos: float):
         """Salta a un segundo concreto."""
@@ -266,16 +270,30 @@ class PlayerService:
         if self.backend.obtener_estado() != "inactivo":
             self.avanzar_segundos(segundos)
             pos = self.backend.obtener_posicion()
+            dur = self.backend.obtener_duracion()
             m, s = int(pos) // 60, int(pos) % 60
-            speak(f"{m}:{s:02d}", interrupt=True)
+            if dur > 0:
+                dm, ds = int(dur) // 60, int(dur) % 60
+                speak(f"{m}:{s:02d} de {dm}:{ds:02d}", interrupt=True)
+            else:
+                speak(f"{m}:{s:02d}", interrupt=True)
+        else:
+            speak(_("No hay ningún medio reproduciéndose."), interrupt=True)
 
     def retroceder(self, segundos: float = 5.0):
         """Retrocede N segundos (por defecto 5s) e informa la posición."""
         if self.backend.obtener_estado() != "inactivo":
             self.retroceder_segundos(segundos)
             pos = self.backend.obtener_posicion()
+            dur = self.backend.obtener_duracion()
             m, s = int(pos) // 60, int(pos) % 60
-            speak(f"{m}:{s:02d}", interrupt=True)
+            if dur > 0:
+                dm, ds = int(dur) // 60, int(dur) % 60
+                speak(f"{m}:{s:02d} de {dm}:{ds:02d}", interrupt=True)
+            else:
+                speak(f"{m}:{s:02d}", interrupt=True)
+        else:
+            speak(_("No hay ningún medio reproduciéndose."), interrupt=True)
 
     def establecer_volumen(self, vol: float):
         """Ajusta el volumen global del reproductor (0.0 a 1.0)."""
