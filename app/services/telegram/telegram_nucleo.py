@@ -3,7 +3,7 @@
 
 Mixin de TelegramService (parte de la refactorización modular).
 """
-from app.core.config import APP_NAME, APP_VERSION
+from app.core.version import APP_NAME, APP_VERSION
 from app.services.telegram.telegram_common import (
     asyncio, sqlite3, threading, time, Any, Dict, db,
     security, get_data_path, log, HAS_KURIGRAM,
