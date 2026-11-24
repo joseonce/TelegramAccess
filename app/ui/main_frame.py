@@ -299,11 +299,13 @@ class MainFrame(wx.Frame):
             "tg_resumen": self._on_tg_resumen,
             # Reproductores
             "media_play_pausa": lambda e: player_service.alternar_pausa(),
-            "media_detener": lambda e: player_service.detener(),
+            "media_detener": lambda e: player_service.detener_con_aviso(),
             "media_avanzar": lambda e: player_service.avanzar(),
             "media_retroceder": lambda e: player_service.retroceder(),
             "media_subir_volumen": lambda e: player_service.subir_volumen(),
             "media_bajar_volumen": lambda e: player_service.bajar_volumen(),
+            "media_subir_velocidad": lambda e: player_service.subir_velocidad(),
+            "media_bajar_velocidad": lambda e: player_service.bajar_velocidad(),
         }
         self.SetAcceleratorTable(shortcut_manager.construir_tabla(self, mapa))
 

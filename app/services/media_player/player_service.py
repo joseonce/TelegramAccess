@@ -6,6 +6,7 @@ Ejecuta la carga de contenidos en segundo plano para no congelar la UI.
 """
 
 from app.core.plataforma import llamar_en_ui
+from app.core.speech import speak
 import logging
 import threading
 from typing import Optional, Dict, Any, Callable
@@ -213,6 +214,16 @@ class PlayerService:
             self.guardar_posicion_actual()
             event_bus.emit("player_state_changed", "pausado")
 
+    def alternar_pausa(self):
+        """Alterna entre reproducción y pausa."""
+        estado = self.backend.obtener_estado()
+        if estado == "reproduciendo":
+            self.pausar()
+            speak(_("Pausado."), interrupt=True)
+        elif estado in ("pausado", "cargado", "detenido"):
+            self.reproducir()
+            speak(_("Reproduciendo."), interrupt=True)
+
     def detener(self):
         """Detiene la reproducción actual."""
         if self.backend.obtener_estado() != "inactivo":
@@ -220,6 +231,12 @@ class PlayerService:
             self.guardar_posicion_actual(finalizado=False)
             self.backend.detener()
             event_bus.emit("player_state_changed", "detenido")
+
+    def detener_con_aviso(self):
+        """Detiene la reproducción y anuncia la detención por voz."""
+        if self.backend.obtener_estado() != "inactivo":
+            self.detener()
+            speak(_("Reproducción detenida."), interrupt=True)
 
     def seek(self, segundos: float):
         """Salta a un segundo concreto."""
@@ -232,27 +249,71 @@ class PlayerService:
         """Avanza la reproducción N segundos."""
         if self.backend.obtener_estado() != "inactivo":
             pos = self.backend.obtener_posicion()
-            self.seek(pos + segundos)
+            dur = self.backend.obtener_duracion()
+            nueva = pos + segundos
+            if dur > 0:
+                nueva = min(nueva, dur)
+            self.seek(nueva)
 
     def retroceder_segundos(self, segundos: float):
         """Retrocede la reproducción N segundos."""
         if self.backend.obtener_estado() != "inactivo":
             pos = self.backend.obtener_posicion()
-            self.seek(pos - segundos)
+            self.seek(max(0.0, pos - segundos))
+
+    def avanzar(self, segundos: float = 5.0):
+        """Avanza N segundos (por defecto 5s) e informa la posición."""
+        if self.backend.obtener_estado() != "inactivo":
+            self.avanzar_segundos(segundos)
+            pos = self.backend.obtener_posicion()
+            m, s = int(pos) // 60, int(pos) % 60
+            speak(f"{m}:{s:02d}", interrupt=True)
+
+    def retroceder(self, segundos: float = 5.0):
+        """Retrocede N segundos (por defecto 5s) e informa la posición."""
+        if self.backend.obtener_estado() != "inactivo":
+            self.retroceder_segundos(segundos)
+            pos = self.backend.obtener_posicion()
+            m, s = int(pos) // 60, int(pos) % 60
+            speak(f"{m}:{s:02d}", interrupt=True)
 
     def establecer_volumen(self, vol: float):
         """Ajusta el volumen global del reproductor (0.0 a 1.0)."""
+        vol = max(0.0, min(1.0, vol))
         self.backend.establecer_volumen(vol)
-        # Diferido: el volumen cambia muchas veces seguidas (flechas/rueda) y cada set()
-        # normal es un settings.json completo con fsync en el hilo de la interfaz.
         config.set_diferido("media_player", "volume", vol)
         event_bus.emit("player_vol_changed", vol)
 
+    def subir_volumen(self, delta: float = 0.05):
+        """Sube el volumen del reproductor un 5% y lo verbaliza."""
+        vol = min(1.0, self.backend.obtener_volumen() + delta)
+        self.establecer_volumen(vol)
+        speak(f"{int(vol * 100)} %", interrupt=True)
+
+    def bajar_volumen(self, delta: float = 0.05):
+        """Baja el volumen del reproductor un 5% y lo verbaliza."""
+        vol = max(0.0, self.backend.obtener_volumen() - delta)
+        self.establecer_volumen(vol)
+        speak(f"{int(vol * 100)} %", interrupt=True)
+
     def establecer_velocidad(self, speed: float):
         """Establece la velocidad de reproducción sin distorsión (0.5 a 2.0)."""
+        speed = max(0.5, min(2.0, speed))
         self.backend.establecer_velocidad(speed)
         config.set_diferido("media_player", "speed", speed)
         event_bus.emit("player_speed_changed", speed)
+
+    def subir_velocidad(self, delta: float = 0.25):
+        """Aumenta la velocidad de reproducción en 0.25x y la verbaliza."""
+        vel = min(2.0, self.backend.obtener_velocidad() + delta)
+        self.establecer_velocidad(vel)
+        speak(f"{vel:.2f}x", interrupt=True)
+
+    def bajar_velocidad(self, delta: float = 0.25):
+        """Reduce la velocidad de reproducción en 0.25x y la verbaliza."""
+        vel = max(0.5, self.backend.obtener_velocidad() - delta)
+        self.establecer_velocidad(vel)
+        speak(f"{vel:.2f}x", interrupt=True)
 
     def reproducir_siguiente(self) -> bool:
         """Avanza al siguiente elemento de la cola si existe y lo carga."""

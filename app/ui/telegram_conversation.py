@@ -354,3 +354,36 @@ class TelegramConversationDialog(_ConvCompartirMixin, _ConvMensajesMixin, _ConvA
         sizer.Add(btn_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
         self.SetSizer(sizer)
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook_conv)
+
+    def _on_char_hook_conv(self, event):
+        """Atajos multimedia directos dentro de la ventana de conversación."""
+        code = event.GetKeyCode()
+        mods = event.GetModifiers()
+        if mods == wx.MOD_NONE:
+            from app.services.media_player.player_service import player_service
+            if code == wx.WXK_F1:
+                player_service.retroceder()
+                return
+            elif code == wx.WXK_F2:
+                player_service.alternar_pausa()
+                return
+            elif code == wx.WXK_F3:
+                player_service.avanzar()
+                return
+            elif code == wx.WXK_F4:
+                player_service.detener_con_aviso()
+                return
+            elif code == wx.WXK_F7:
+                player_service.bajar_velocidad()
+                return
+            elif code == wx.WXK_F8:
+                player_service.subir_velocidad()
+                return
+            elif code == wx.WXK_F9:
+                player_service.bajar_volumen()
+                return
+            elif code == wx.WXK_F10:
+                player_service.subir_volumen()
+                return
+        event.Skip()
