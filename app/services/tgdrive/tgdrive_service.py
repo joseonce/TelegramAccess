@@ -38,7 +38,7 @@ import logging
 log = logging.getLogger(__name__)
 
 # Título por defecto del canal privado de almacenamiento.
-TITULO_CANAL = "SocialRSS Telegram Drive"
+TITULO_CANAL = "Telegram Drive"
 
 
 class TgDriveService(_ColaTransferenciasMixin):
@@ -506,13 +506,13 @@ class TgDriveService(_ColaTransferenciasMixin):
         # Manifiestos: en el canal debe quedar SOLO el más reciente (mayor message_id). Los
         # demás son basura acumulada de subidas anteriores y se pueden borrar.
         manifiestos = sorted(d["message_id"] for d in docs
-                             if d.get("message_id") and d.get("file_name") == manifest.NOMBRE_MANIFIESTO)
+                             if d.get("message_id") and d.get("file_name") in getattr(manifest, "NOMBRES_MANIFIESTO", {manifest.NOMBRE_MANIFIESTO}))
         manifiestos_viejos = manifiestos[:-1]   # todos menos el más nuevo
         # Huérfanos: documentos no referenciados y que NO son el manifiesto vigente, más los
         # manifiestos viejos sobrantes.
         orfanos = [d["message_id"] for d in docs
                    if d.get("message_id") and d["message_id"] not in ref_ids
-                   and d.get("file_name") != manifest.NOMBRE_MANIFIESTO]
+                   and d.get("file_name") not in getattr(manifest, "NOMBRES_MANIFIESTO", {manifest.NOMBRE_MANIFIESTO})]
         orfanos += manifiestos_viejos
         # Faltantes: partes referenciadas cuyo mensaje ya no está en el canal.
         faltantes = [mid for mid in ref_ids if mid not in ids_canal]
@@ -544,7 +544,7 @@ class TgDriveService(_ColaTransferenciasMixin):
             salida.append({
                 "message_id": mid,
                 "file_name": d.get("file_name", "") or "",
-                "es_manifiesto": d.get("file_name") == manifest.NOMBRE_MANIFIESTO,
+                "es_manifiesto": d.get("file_name") in getattr(manifest, "NOMBRES_MANIFIESTO", {manifest.NOMBRE_MANIFIESTO}),
                 "referenciado": mid in ref,
                 "item": ref.get(mid, ""),
             })
@@ -643,7 +643,7 @@ class TgDriveService(_ColaTransferenciasMixin):
         with open(ruta, "wb") as fh:
             fh.write(datos)
         try:
-            info = backend.subir(account_id, channel_id, ruta, caption="SocialRSS Drive index")
+            info = backend.subir(account_id, channel_id, ruta, caption="Telegram Drive index")
             nuevo = info.get("message_id")
             # Borrar el manifiesto anterior (dejar solo el nuevo).
             if anterior and nuevo and anterior != nuevo:
@@ -666,10 +666,16 @@ class TgDriveService(_ColaTransferenciasMixin):
             # LOCALIZARLO por su título entre los chats de la cuenta.
             channel_id = backend.buscar_canal(account_id, TITULO_CANAL)
             if channel_id is None:
+                channel_id = backend.buscar_canal(account_id, "SocialRSS Telegram Drive")
+            if channel_id is None:
+                channel_id = backend.buscar_canal(account_id, "Social RSS Telegram Drive")
+            if channel_id is None:
                 raise ValueError(_(
                     "No hay ningún canal de Telegram Drive en esta cuenta para reconstruir. "
                     "Si es la primera vez, crea un canal nuevo."))
         ref = backend.buscar_manifiesto(account_id, channel_id, manifest.NOMBRE_MANIFIESTO)
+        if not ref and hasattr(manifest, "NOMBRE_MANIFIESTO_LEGACY"):
+            ref = backend.buscar_manifiesto(account_id, channel_id, manifest.NOMBRE_MANIFIESTO_LEGACY)
         if not ref:
             raise ValueError(_("No se encontró el índice en el canal."))
         ruta = os.path.join(self._carpeta_temp(), "indice_descargado.json")

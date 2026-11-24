@@ -134,19 +134,38 @@ def ejecutar_migraciones():
     """)
 
     # 7. Telegram Drive (nube personal)
+    # Comprobar si la tabla tgdrive_items tiene el esquema antiguo incompatible
+    cols_drive = {r[1] for r in db.query("PRAGMA table_info(tgdrive_items)")}
+    if cols_drive and "name" not in cols_drive:
+        log.info("Migrando esquema antiguo de Telegram Drive a la estructura compatible...")
+        db.execute("DROP TABLE IF EXISTS tgdrive_parts;")
+        db.execute("DROP TABLE IF EXISTS tgdrive_transfers;")
+        db.execute("DROP TABLE IF EXISTS tgdrive_pending_deletes;")
+        db.execute("DROP TABLE IF EXISTS tgdrive_items;")
+
     db.execute("""
     CREATE TABLE IF NOT EXISTS tgdrive_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
         account_id INTEGER NOT NULL,
-        parent_id INTEGER,
-        nombre TEXT NOT NULL,
+        channel_id INTEGER,
+        parent_id TEXT,
+        name TEXT NOT NULL,
         tipo TEXT NOT NULL,
-        tamano INTEGER DEFAULT 0,
+        path TEXT NOT NULL DEFAULT '',
+        size INTEGER DEFAULT 0,
+        mime TEXT,
         sha256 TEXT,
-        estado TEXT DEFAULT 'listo',
-        creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        modificado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TEXT NOT NULL,
+        modified_at TEXT NOT NULL,
+        estado TEXT NOT NULL DEFAULT 'normal',
+        trashed_at TEXT,
+        original_parent_id TEXT,
+        original_path TEXT,
+        num_parts INTEGER DEFAULT 1,
+        encrypted INTEGER DEFAULT 0,
+        meta_version INTEGER DEFAULT 1,
         descripcion TEXT,
+        FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE,
         FOREIGN KEY(parent_id) REFERENCES tgdrive_items(id) ON DELETE CASCADE
     );
     """)
@@ -157,14 +176,15 @@ def ejecutar_migraciones():
     db.execute("""
     CREATE TABLE IF NOT EXISTS tgdrive_parts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id INTEGER NOT NULL,
-        num_parte INTEGER NOT NULL,
-        total_partes INTEGER NOT NULL,
-        tamano_parte INTEGER NOT NULL,
-        sha256_parte TEXT,
-        message_id INTEGER NOT NULL,
-        channel_id INTEGER NOT NULL,
-        creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        item_id TEXT NOT NULL,
+        orden INTEGER NOT NULL,
+        size INTEGER DEFAULT 0,
+        sha256 TEXT,
+        message_id INTEGER,
+        tg_file_id TEXT,
+        tg_unique_id TEXT,
+        estado TEXT DEFAULT 'pending',
+        UNIQUE(item_id, orden),
         FOREIGN KEY(item_id) REFERENCES tgdrive_items(id) ON DELETE CASCADE
     );
     """)
@@ -172,17 +192,22 @@ def ejecutar_migraciones():
 
     db.execute("""
     CREATE TABLE IF NOT EXISTS tgdrive_transfers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        account_id INTEGER NOT NULL,
-        item_id INTEGER,
-        tipo TEXT NOT NULL,
-        ruta_local TEXT NOT NULL,
-        tamano_total INTEGER DEFAULT 0,
-        bytes_transferidos INTEGER DEFAULT 0,
-        estado TEXT DEFAULT 'pendiente',
+        id TEXT PRIMARY KEY,
+        account_id INTEGER,
+        item_id TEXT,
+        parent_id TEXT,
+        carpeta_destino TEXT,
+        operacion TEXT NOT NULL,
+        nombre TEXT,
+        local_path TEXT,
+        size_total INTEGER DEFAULT 0,
+        bytes_hechos INTEGER DEFAULT 0,
+        estado TEXT NOT NULL DEFAULT 'pendiente',
         error TEXT,
+        prioridad INTEGER DEFAULT 0,
+        created_at TEXT,
+        updated_at TEXT,
         descripcion TEXT,
-        creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(item_id) REFERENCES tgdrive_items(id) ON DELETE SET NULL
     );
     """)
@@ -191,10 +216,10 @@ def ejecutar_migraciones():
     db.execute("""
     CREATE TABLE IF NOT EXISTS tgdrive_pending_deletes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        account_id INTEGER NOT NULL,
-        channel_id INTEGER NOT NULL,
-        message_id INTEGER NOT NULL,
-        creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        account_id INTEGER,
+        channel_id INTEGER,
+        message_id INTEGER,
+        created_at TEXT
     );
     """)
 

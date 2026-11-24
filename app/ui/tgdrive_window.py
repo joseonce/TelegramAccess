@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Ventana del explorador de Telegram Drive: la nube personal de SocialRSS.
+"""Ventana del explorador de Telegram Drive: la nube personal de TelegramAccess.
 
 Interfaz plenamente accesible (wxPython) para navegar por la jerarquía virtual, subir y
 descargar, crear/renombrar/mover/copiar/eliminar y gestionar la papelera y las
@@ -21,7 +21,7 @@ from app.services.tgdrive.tgdrive_service import tgdrive_service
 
 
 class TelegramDriveFrame(wx.Frame):
-    """Ventana independiente (no modal) para que SocialRSS siga usándose durante las
+    """Ventana independiente (no modal) para que TelegramAccess siga usándose durante las
     transferencias. Una por cuenta de Telegram."""
 
     def __init__(self, parent, account_id: int):
@@ -546,13 +546,17 @@ class TelegramDriveFrame(wx.Frame):
             nombre = dlg.nombre
             desc = dlg.descripcion
             if nombre:
-                if self.repo.existe_nombre(self.account_id, self._carpeta_actual, nombre):
-                    notificar(_("Ya existe algo con ese nombre."))
-                else:
-                    self.repo.crear_carpeta(self.account_id, self._carpeta_actual, nombre,
-                                            self.svc.obtener_channel_id(self.account_id), desc)
-                    notificar(_("Carpeta creada."))
-                    self._refrescar()
+                try:
+                    if self.repo.existe_nombre(self.account_id, self._carpeta_actual, nombre):
+                        notificar(_("Ya existe algo con ese nombre."))
+                    else:
+                        self.repo.crear_carpeta(self.account_id, self._carpeta_actual, nombre,
+                                                self.svc.obtener_channel_id(self.account_id), desc)
+                        notificar(_("Carpeta creada."))
+                        self._refrescar()
+                except Exception as e:
+                    log.exception("Error al crear carpeta en Telegram Drive: %s", e)
+                    notificar(_("Error al crear la carpeta: {0}").format(e))
         dlg.Destroy()
 
     def _cambiar_descripcion(self, event=None):

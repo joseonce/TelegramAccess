@@ -19,7 +19,10 @@ log = logging.getLogger(__name__)
 MANIFEST_VERSION = 1
 
 # Nombre del documento del manifiesto dentro del canal.
-NOMBRE_MANIFIESTO = "socialrss_drive_index.json"
+NOMBRE_MANIFIESTO = "telegram_drive_index.json"
+NOMBRE_MANIFIESTO_LEGACY = "socialrss_drive_index.json"
+NOMBRES_MANIFIESTO = {NOMBRE_MANIFIESTO, NOMBRE_MANIFIESTO_LEGACY}
+
 
 
 def construir_manifiesto(account_id: int, channel_id: int) -> Dict[str, Any]:

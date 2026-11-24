@@ -95,7 +95,7 @@ class _DriveStorageMixin:
         async def _coro():
             client = await self._cliente(account_id)
             chat = await self._drive_llamar(
-                lambda: client.create_channel(titulo, description=descripcion or "SocialRSS Telegram Drive"))
+                lambda: client.create_channel(titulo, description=descripcion or "Telegram Drive - Nube personal privada"))
             return chat.id
         return self._run(_coro(), timeout=120)
 
@@ -120,6 +120,10 @@ class _DriveStorageMixin:
         """Localiza en la cuenta un canal de DIFUSIÓN con ese título (el de la nube), recorriendo
         los chats. Sirve para reconstruir cuando la app perdió el id del canal (reinstalación,
         base borrada, otro equipo). Devuelve su id o None si no lo encuentra."""
+        titulos_buscar = {titulo}
+        if titulo in ("Telegram Drive", "SocialRSS Telegram Drive", "Social RSS Telegram Drive"):
+            titulos_buscar = {"Telegram Drive", "SocialRSS Telegram Drive", "Social RSS Telegram Drive"}
+
         async def _coro():
             client = await self._cliente(account_id)
             try:
@@ -132,7 +136,7 @@ class _DriveStorageMixin:
                 chat = getattr(dialog, "chat", None)
                 if chat is None:
                     continue
-                if (getattr(chat, "title", "") or "") == titulo and es_canal(chat):
+                if (getattr(chat, "title", "") or "") in titulos_buscar and es_canal(chat):
                     encontrado = chat.id
                     break
             return encontrado

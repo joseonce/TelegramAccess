@@ -71,17 +71,39 @@ def main():
         print(f"\n - Eliminando paquete previo: {zip_nombre}")
         zip_destino.unlink()
 
-    print(f"\n[1/3] Comprimiendo {ORIGEN} -> {zip_destino.name}...")
+    print(f"\n[1/3] Comprimiendo {ORIGEN} -> {zip_destino.name} (excluyendo datos personales)...")
     archivos_totales = 0
+    # Carpetas bajo data/ que contienen datos personales del usuario y NUNCA deben incluirse en la release
+    CARPETAS_PERSONALES = {"sessions", "database", "config", "logs", "backups", "downloads", "grabaciones", "temp"}
+    EXTS_PERSONALES = {".session", ".session-journal", ".db", ".db-shm", ".db-wal", ".db-journal", ".enc", ".key", ".log", ".jsonl"}
+
     with zipfile.ZipFile(zip_destino, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
         for raiz, _dirs, archivos in os.walk(ORIGEN):
             for archivo in archivos:
                 ruta_completa = Path(raiz) / archivo
-                # Dentro del ZIP, la carpeta raíz es "TelegramAccess"
                 rel = ruta_completa.relative_to(ORIGEN)
+                partes = rel.parts
+
+                # Filtro de privacidad y datos de usuario:
+                if len(partes) >= 2 and partes[0].lower() == "data":
+                    sub_data = partes[1].lower()
+                    if sub_data in CARPETAS_PERSONALES:
+                        continue
+                    if ruta_completa.suffix.lower() in EXTS_PERSONALES:
+                        continue
+                if ruta_completa.suffix.lower() in EXTS_PERSONALES:
+                    continue
+
+                # Dentro del ZIP, la carpeta raíz es "TelegramAccess"
                 ruta_en_zip = Path(NOMBRE_BASE) / rel
                 zf.write(ruta_completa, str(ruta_en_zip))
                 archivos_totales += 1
+
+        # Asegurar que las carpetas de datos existan vacías en el ZIP mediante entradas de directorio
+        for sub in sorted(CARPETAS_PERSONALES):
+            dir_zip = f"{NOMBRE_BASE}/data/{sub}/"
+            zinfo = zipfile.ZipInfo(dir_zip)
+            zf.writestr(zinfo, "")
 
     tam_bytes = zip_destino.stat().st_size
     tam_mb = tam_bytes / (1024 * 1024)

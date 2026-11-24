@@ -3,6 +3,7 @@
 
 Mixin de TelegramService (parte de la refactorización modular).
 """
+from app.core.config import APP_NAME, APP_VERSION
 from app.services.telegram.telegram_common import (
     asyncio, sqlite3, threading, time, Any, Dict, db,
     security, get_data_path, log, HAS_KURIGRAM,
@@ -134,7 +135,7 @@ class _NucleoMixin:
             api_id=api_id,
             api_hash=api_hash,
             workdir=self._sessions_dir(),
-            app_version="SocialRSS Suite",
+            app_version=f"{APP_NAME} {APP_VERSION}",
             device_model="PC",
             system_version="Windows",
             # kurigram serializa subidas/descargas con un semáforo cuyo tamaño es este valor
