@@ -1,0 +1,25 @@
+# TelegramAccess - Dependencias de Python
+
+# --- Interfaz gráfica y accesibilidad ---
+wxPython>=4.2.0
+
+# --- Telegram (MTProto cliente de usuario) ---
+kurigram>=2.2.0
+kuricrypt>=0.1.2
+pycryptodome>=3.18.0
+tgcrypto>=1.2.5; python_version < '3.13'
+py-tgcalls>=2.1.0
+qrcode>=7.4.2
+
+# --- Criptografía y seguridad (DPAPI / credenciales) ---
+cryptography>=41.0.0
+
+# --- Red y utilidades ---
+requests>=2.31.0
+certifi>=2023.7.22
+
+# --- Empaquetado y compilación ---
+pyinstaller>=6.0.0
+
+# --- Motor de audio (opcional, incluido en __pip__) ---
+# basskit (instalar desde __pip__/basskit*.whl)

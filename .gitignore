@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# Build y distribución
+build/
+dist/
+.backup_data_dist/
+*.spec.bak
+__pip__/
+*.whl
+
+# Datos del usuario y carpetas locales (NUNCA subir bases de datos, credenciales ni sesiones)
+/data/*
+!/data/bin/
+/data/bin/*
+!/data/bin/ffmpeg.exe
+!/data/bin/*.nvda-addon
+!/data/docs/
+!/data/locales/
+!/data/sounds/
+/data/sounds/*
+!/data/sounds/default/
+
+# Archivos específicos de seguridad
+*.db
+*.sqlite
+*.sqlite3
+*.session
+*.session-journal
+*.key
+settings.json
+secrets.key
+
+# Temporales de actualización
+_actualizacion_*
+_actualizando.lock
+_actualizacion_temp/
+_actualizar_*.bat
+_actualizacion_error.log
+
+# Tokens y credenciales
+*token*
+*.env
