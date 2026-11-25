@@ -48,3 +48,6 @@ _actualizacion_error.log
 # Tokens y credenciales
 *token*
 *.env
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

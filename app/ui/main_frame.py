@@ -52,6 +52,8 @@ class MainFrame(wx.Frame):
         self.active_account_id = None
         self.active_timeline_type = "all"
         self.lista_items_db_ids = []
+        self._chats_cache = {}
+        self._carpetas_cache = []
         self._tb_icon = None
 
         self._init_ui()
@@ -439,106 +441,139 @@ class MainFrame(wx.Frame):
             self._cargar_listado_chats()
 
     # --- LISTADO DE CHATS ---
-    def _cargar_listado_chats(self):
-        self.lista_items.DeleteAllItems()
-        self.lista_items.ClearAll()
-        self.lista_items_db_ids.clear()
-
+    def _refrescar_carpetas_cache(self):
+        """Pre-carga las carpetas de la cuenta en memoria para que el menú contextual y los filtros
+        tengan acceso instantáneo sin tocar SQLite ni parsear JSON en el hilo de la interfaz."""
+        self._carpetas_cache = []
         if not self.active_account_id:
             return
+        rows = db.query(
+            "SELECT folder_id, title, COALESCE(chat_ids_json, '[]') FROM telegram_folders WHERE account_id = ?",
+            (self.active_account_id,)
+        )
+        for f_id, f_title, ids_json in rows:
+            try:
+                c_ids = {str(x) for x in json.loads(ids_json or "[]")}
+            except Exception:
+                c_ids = set()
+            self._carpetas_cache.append((f_id, f_title, c_ids))
 
-        # Columnas
-        self.lista_items.InsertColumn(0, "Chat / Título", width=220)
-        self.lista_items.InsertColumn(1, "Tipo", width=100)
-        self.lista_items.InsertColumn(2, "No leídos", width=80)
-        self.lista_items.InsertColumn(3, "Último mensaje", width=300)
-        self.lista_items.InsertColumn(4, "Fecha", width=120)
-        self.lista_items.InsertColumn(5, "Estado", width=120)
+    def _cargar_listado_chats(self):
+        self.lista_items.Freeze()
+        try:
+            self.lista_items.DeleteAllItems()
+            self.lista_items.ClearAll()
+            self.lista_items_db_ids.clear()
+            self._chats_cache.clear()
 
-        # Si el buffer es contactos
-        if self.active_timeline_type == "contacts":
-            self._cargar_contactos()
-            return
+            if not self.active_account_id:
+                return
 
-        sql = """
-        SELECT id, chat_id, title, chat_type, unread_count, last_message, last_message_date,
-               COALESCE(muted,0), COALESCE(pinned,0), COALESCE(verified,0), COALESCE(protected,0), COALESCE(blocked,0)
-        FROM telegram_chats WHERE account_id = ?
-        """
-        params = [self.active_account_id]
+            self._refrescar_carpetas_cache()
 
-        if self.active_timeline_type == "unread":
-            sql += " AND unread_count > 0"
-        elif self.active_timeline_type in ("private", "bot", "group", "supergroup", "channel"):
-            sql += " AND chat_type = ?"
-            params.append(self.active_timeline_type)
-        elif str(self.active_timeline_type).startswith("folder:"):
-            folder_id = self.active_timeline_type.split(":", 1)[1]
-            fila = db.query_one("SELECT chat_ids_json FROM telegram_folders WHERE account_id = ? AND folder_id = ?",
-                                (self.active_account_id, folder_id))
-            ids = []
-            if fila and fila[0]:
-                try:
-                    ids = json.loads(fila[0])
-                except Exception:
-                    ids = []
-            if ids:
-                placeholders = ",".join("?" for _ in ids)
-                sql += f" AND chat_id IN ({placeholders})"
-                params.extend(ids)
-            else:
-                sql += " AND 0"
+            # Columnas
+            self.lista_items.InsertColumn(0, "Chat / Título", width=220)
+            self.lista_items.InsertColumn(1, "Tipo", width=100)
+            self.lista_items.InsertColumn(2, "No leídos", width=80)
+            self.lista_items.InsertColumn(3, "Último mensaje", width=300)
+            self.lista_items.InsertColumn(4, "Fecha", width=120)
+            self.lista_items.InsertColumn(5, "Estado", width=120)
 
-        sql += " ORDER BY pinned DESC, last_message_date DESC LIMIT 500"
-        rows = db.query(sql, tuple(params))
+            # Si el buffer es contactos
+            if self.active_timeline_type == "contacts":
+                self._cargar_contactos()
+                return
 
-        tipo_labels = {
-            "private": "Privado", "bot": "Bot", "group": "Grupo",
-            "supergroup": "Supergrupo", "channel": "Canal"
-        }
+            sql = """
+            SELECT id, chat_id, title, chat_type, unread_count, last_message, last_message_date,
+                   COALESCE(muted,0), COALESCE(pinned,0), COALESCE(verified,0), COALESCE(protected,0), COALESCE(blocked,0)
+            FROM telegram_chats WHERE account_id = ?
+            """
+            params = [self.active_account_id]
 
-        for idx, r in enumerate(rows):
-            db_id, chat_id, title, chat_type, unread, last_msg, last_date, muted, pinned, verified, protected, blocked = r
-            tipo_txt = tipo_labels.get(chat_type, chat_type or "Chat")
-            fecha_rel = formatear_tiempo_relativo(str(last_date)) if last_date else ""
+            if self.active_timeline_type == "unread":
+                sql += " AND unread_count > 0"
+            elif self.active_timeline_type in ("private", "bot", "group", "supergroup", "channel"):
+                sql += " AND chat_type = ?"
+                params.append(self.active_timeline_type)
+            elif str(self.active_timeline_type).startswith("folder:"):
+                folder_id = self.active_timeline_type.split(":", 1)[1]
+                ids = []
+                for f_id, _f_title, c_ids in self._carpetas_cache:
+                    if str(f_id) == str(folder_id):
+                        ids = list(c_ids)
+                        break
+                if ids:
+                    placeholders = ",".join("?" for _ in ids)
+                    sql += f" AND chat_id IN ({placeholders})"
+                    params.extend(ids)
+                else:
+                    sql += " AND 0"
 
-            flags = []
-            if pinned:
-                flags.append("Fijado")
-            if muted:
-                flags.append("Silenciado")
-            if verified:
-                flags.append("Verificado")
-            if protected:
-                flags.append("Protegido")
-            if blocked:
-                flags.append("Bloqueado")
-            flags_txt = ", ".join(flags)
+            sql += " ORDER BY pinned DESC, last_message_date DESC LIMIT 500"
+            rows = db.query(sql, tuple(params))
 
-            self.lista_items.InsertItem(idx, title or "Sin título")
-            self.lista_items.SetItem(idx, 1, tipo_txt)
-            self.lista_items.SetItem(idx, 2, str(unread) if unread > 0 else "")
-            self.lista_items.SetItem(idx, 3, (last_msg or "").replace("\n", " "))
-            self.lista_items.SetItem(idx, 4, fecha_rel)
-            self.lista_items.SetItem(idx, 5, flags_txt)
+            tipo_labels = {
+                "private": "Privado", "bot": "Bot", "group": "Grupo",
+                "supergroup": "Supergrupo", "channel": "Canal"
+            }
 
-            # Lectura accesible completa para el lector de pantalla
-            lectura = f"{title}. {tipo_txt}."
-            if unread > 0:
-                lectura += f" {unread} mensajes no leídos."
-            if last_msg:
-                lectura += f" Último mensaje: {last_msg}."
-            if fecha_rel:
-                lectura += f" {fecha_rel}."
-            if flags_txt:
-                lectura += f" {flags_txt}."
-            self.lista_items.establecer_lectura(idx, lectura)
+            for idx, r in enumerate(rows):
+                db_id, chat_id, title, chat_type, unread, last_msg, last_date, muted, pinned, verified, protected, blocked = r
+                tipo_txt = tipo_labels.get(chat_type, chat_type or "Chat")
+                fecha_rel = formatear_tiempo_relativo(str(last_date)) if last_date else ""
 
-            self.lista_items_db_ids.append(f"{self.active_account_id}|{chat_id}|{title or ''}")
+                flags = []
+                if pinned:
+                    flags.append("Fijado")
+                if muted:
+                    flags.append("Silenciado")
+                if verified:
+                    flags.append("Verificado")
+                if protected:
+                    flags.append("Protegido")
+                if blocked:
+                    flags.append("Bloqueado")
+                flags_txt = ", ".join(flags)
 
-        total_chats = len(rows)
-        self.status_bar.SetStatusText(f"Mostrando {total_chats} chats.", 0)
-        self.status_bar.SetStatusText(f"Cuenta ID: {self.active_account_id}", 1)
+                self.lista_items.InsertItem(idx, title or "Sin título")
+                self.lista_items.SetItem(idx, 1, tipo_txt)
+                self.lista_items.SetItem(idx, 2, str(unread) if unread > 0 else "")
+                self.lista_items.SetItem(idx, 3, (last_msg or "").replace("\n", " "))
+                self.lista_items.SetItem(idx, 4, fecha_rel)
+                self.lista_items.SetItem(idx, 5, flags_txt)
+
+                # Lectura accesible completa para el lector de pantalla
+                lectura = f"{title}. {tipo_txt}."
+                if unread > 0:
+                    lectura += f" {unread} mensajes no leídos."
+                if last_msg:
+                    lectura += f" Último mensaje: {last_msg}."
+                if fecha_rel:
+                    lectura += f" {fecha_rel}."
+                if flags_txt:
+                    lectura += f" {flags_txt}."
+                self.lista_items.establecer_lectura(idx, lectura)
+
+                self.lista_items_db_ids.append(f"{self.active_account_id}|{chat_id}|{title or ''}")
+
+                # Guardar en caché de memoria para que el menú contextual sea instantáneo
+                self._chats_cache[chat_id] = {
+                    "unread": unread or 0,
+                    "muted": bool(muted),
+                    "pinned": bool(pinned),
+                    "tipo": chat_type or "private",
+                    "blocked": bool(blocked),
+                    "title": title or "",
+                    "verified": bool(verified),
+                    "protected": bool(protected),
+                }
+
+            total_chats = len(rows)
+            self.status_bar.SetStatusText(f"Mostrando {total_chats} chats.", 0)
+            self.status_bar.SetStatusText(f"Cuenta ID: {self.active_account_id}", 1)
+        finally:
+            self.lista_items.Thaw()
 
     def _cargar_contactos(self):
         rows = db.query(
@@ -597,20 +632,30 @@ class MainFrame(wx.Frame):
         parts = self.lista_items_db_ids[idx].split("|", 2)
         chat_id = int(parts[1])
 
-        est = db.query_one(
-            "SELECT unread_count, muted, pinned, chat_type, COALESCE(blocked,0), title FROM telegram_chats WHERE id = ?",
-            (f"{self.active_account_id}:{chat_id}",)
-        )
+        # 1. Obtener metadatos desde la memoria RAM (instantáneo, sin tocar SQLite ni bloquear UI)
+        est = self._chats_cache.get(chat_id)
         if not est:
-            return
+            fila = db.query_one(
+                "SELECT unread_count, muted, pinned, chat_type, COALESCE(blocked,0), title FROM telegram_chats WHERE id = ?",
+                (f"{self.active_account_id}:{chat_id}",)
+            )
+            if not fila:
+                return
+            est = {
+                "unread": fila[0] or 0,
+                "muted": bool(fila[1]),
+                "pinned": bool(fila[2]),
+                "tipo": fila[3] or "private",
+                "blocked": bool(fila[4]),
+                "title": fila[5] or "",
+            }
 
-        unread, muted, pinned, tipo, blocked, title = est
-        unread = unread or 0
-        muted = bool(muted)
-        pinned = bool(pinned)
-        blocked = bool(blocked)
-        tipo = tipo or "private"
-        title = title or ""
+        unread = est["unread"]
+        muted = est["muted"]
+        pinned = est["pinned"]
+        tipo = est["tipo"]
+        blocked = est["blocked"]
+        title = est["title"]
 
         menu = wx.Menu()
 
@@ -653,16 +698,12 @@ class MainFrame(wx.Frame):
 
         menu.AppendSeparator()
 
-        # Carpetas
-        carpetas = db.query("SELECT folder_id, title, COALESCE(chat_ids_json, '[]') FROM telegram_folders WHERE account_id = ?", (self.active_account_id,))
-        if carpetas:
+        # Carpetas desde la memoria RAM (sin llamadas SQL ni json.loads al abrir el menú)
+        if self._carpetas_cache:
             sub_carp = wx.Menu()
-            for f_id, f_title, ids_json in carpetas:
-                try:
-                    c_ids = {str(x) for x in json.loads(ids_json or "[]")}
-                except Exception:
-                    c_ids = set()
-                if str(chat_id) in c_ids:
+            str_chat_id = str(chat_id)
+            for f_id, f_title, c_ids in self._carpetas_cache:
+                if str_chat_id in c_ids:
                     s_del = sub_carp.Append(wx.ID_ANY, f"Quitar de «{f_title}»")
                     self.Bind(wx.EVT_MENU, lambda e, c=chat_id, fi=f_id: self._chat_carpeta(c, fi, False), s_del)
                 else:

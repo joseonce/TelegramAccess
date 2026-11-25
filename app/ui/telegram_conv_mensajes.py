@@ -988,10 +988,11 @@ class _ConvMensajesMixin:
             self.Bind(wx.EVT_MENU, lambda e, m=meta: self._on_describir_ia(m), item_desc_ia)
 
         if meta.get("media_type") in _MEDIA_DESCARGABLE:
-            # Menú DINÁMICO según el estado real de descarga (comprobado AHORA: detecta si ya se
-            # descargó o si el archivo se borró del disco desde la última vez).
-            ruta_local = telegram_service.ruta_descarga_valida(self.account_id, self.chat_id, meta["message_id"])
-            meta["media_path"] = ruta_local or ""
+            # Detección en memoria del archivo descargado (sin consultas síncronas a SQLite en el hilo de la UI)
+            ruta_local = meta.get("media_path")
+            if ruta_local and not os.path.exists(ruta_local):
+                ruta_local = ""
+                meta["media_path"] = ""
             meta["descargado"] = bool(ruta_local)
             if ruta_local:
                 if meta.get("reproducible"):
