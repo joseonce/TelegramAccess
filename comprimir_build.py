@@ -121,7 +121,13 @@ def main():
         "size": tam_bytes,
         "sha256": sha256_hash,
         "url": f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/download/v{version}/{zip_nombre}",
-        "notes": f"Actualización de TelegramAccess v{version}: Activación automática de primer plano y foco en la lista de chats al iniciar/actualizar, y reducción del volumen del sonido de espera."
+        "notes": (
+            "• Agregadas llamadas de audio y vídeo y la posibilidad de grabar las mismas.\n"
+            "• Activación automática en primer plano y foco en la lista de chats al iniciar.\n"
+            "• Reducción del volumen del sonido de espera durante las actualizaciones.\n"
+            "• Menú contextual optimizado con respuesta instantánea (< 1ms).\n"
+            "• Controles de reproducción multimedia con teclas de función (F1-F4, F7-F10) y Shift+Flechas."
+        )
     }
 
     json_destino.write_text(json.dumps(manifiesto, indent=4, ensure_ascii=False), encoding="utf-8")

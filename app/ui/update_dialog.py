@@ -31,12 +31,12 @@ class DialogoActualizacion(wx.Dialog):
         super().__init__(
             frame,
             title=_("Actualización disponible de TelegramAccess"),
-            style=wx.DEFAULT_DIALOG_STYLE,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
             name=_("Diálogo de actualización")
         )
         self._frame = frame
         self._version = version_remota
-        self._notas = notas
+        self._notas = (notas or "").strip()
         self._cancelado = False
         self._trabajando = False
         self._sonido_en_curso = False
@@ -47,30 +47,64 @@ class DialogoActualizacion(wx.Dialog):
         self.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
         self.btn_instalar.SetFocus()
 
+        # Anunciar las novedades verbalmente por el sintetizador de voz (NVDA/JAWS/SAPI)
+        wx.CallLater(120, self._anunciar_por_voz)
+
+    def _anunciar_por_voz(self):
+        try:
+            if self._notas:
+                txt = _("Actualización disponible a la versión {nueva}. Novedades: {notas}. Pulse Enter para instalar o Tab para ver detalles.").format(
+                    nueva=self._version, notas=self._notas
+                )
+            else:
+                txt = _("Actualización disponible a la versión {nueva}. Pulse Enter para instalar.").format(
+                    nueva=self._version
+                )
+            speak(txt, interrupt=True)
+        except Exception as e:
+            log.debug(f"Aviso al anunciar actualización por voz: {e}")
+
     def _init_ui(self):
         s = wx.BoxSizer(wx.VERTICAL)
 
-        info_txt = _(
-            "Hay una nueva versión de TelegramAccess disponible en GitHub.\n\n"
-            "Versión actual: {actual}\n"
-            "Versión nueva: {nueva}\n"
+        info_header = _(
+            "Hay una nueva versión de TelegramAccess disponible en GitHub.\n"
+            "Versión actual: {actual}   |   Versión nueva: {nueva}"
         ).format(actual=upd.version_local(), nueva=self._version)
 
+        self.lbl_header = wx.StaticText(self, label=info_header, name=_("Información de versión"))
+        s.Add(self.lbl_header, 0, wx.ALL | wx.EXPAND, 10)
+
+        # Si hay notas de la versión, mostrarlas en un cuadro de texto accesible (Alt+N)
         if self._notas:
-            info_txt += _("\nNovedades de esta versión:\n{notas}\n").format(notas=self._notas)
+            lbl_notas = wx.StaticText(self, label=_("&Novedades de la nueva versión:"), name=_("Etiqueta novedades"))
+            s.Add(lbl_notas, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
-        info_txt += _("\n¿Deseas descargarla e instalarla ahora? La aplicación se reiniciará automáticamente.")
+            self.txt_notas = wx.TextCtrl(
+                self,
+                value=self._notas,
+                style=wx.TE_MULTILINE | wx.TE_READONLY,
+                size=(480, 110),
+                name=_("Novedades de la nueva versión")
+            )
+            s.Add(self.txt_notas, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        else:
+            self.txt_notas = None
 
-        self.lbl = wx.StaticText(self, label=info_txt, name=_("Información de actualización"))
-        s.Add(self.lbl, 0, wx.ALL | wx.EXPAND, 12)
+        self.lbl = wx.StaticText(
+            self,
+            label=_("¿Deseas descargarla e instalarla ahora? La aplicación se reiniciará automáticamente."),
+            name=_("Información de actualización")
+        )
+        s.Add(self.lbl, 0, wx.ALL | wx.EXPAND, 10)
 
         self.gauge = wx.Gauge(self, range=100, size=(-1, 24), name=_("Barra de progreso de descarga"))
         self.gauge.Hide()
-        s.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
+        s.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
 
         self.lbl_prog = wx.StaticText(self, label="", name=_("Detalle de progreso"))
         self.lbl_prog.Hide()
-        s.Add(self.lbl_prog, 0, wx.ALL, 12)
+        s.Add(self.lbl_prog, 0, wx.ALL, 10)
 
         btns = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_instalar = wx.Button(self, label=_("&Instalar ahora"), name=_("Iniciar instalación"))
