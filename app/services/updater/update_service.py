@@ -157,10 +157,8 @@ def ruta_base_instalacion():
 
 
 def actualizacion_disponible_para_instalar():
-    """Comprueba si el entorno permite la actualización en caliente."""
-    if ES_WINDOWS:
-        return bool(IS_FROZEN) or (os.path.exists(os.path.join(str(ROOT_DIR), "main.py")) and os.access(str(ROOT_DIR), os.W_OK))
-    return os.access(str(ROOT_DIR), os.W_OK)
+    """Comprueba si el entorno permite la actualización en caliente (ejecutable empaquetado)."""
+    return bool(IS_FROZEN)
 
 
 def descargar_zip(version, ruta_destino, progreso=None, cancelado=None, timeout=180):

@@ -157,8 +157,8 @@ class DialogoActualizacion(wx.Dialog):
         if not upd.actualizacion_disponible_para_instalar():
             mostrar_info(
                 self,
-                _("La actualización automática solo está disponible en la versión instalada de TelegramAccess.\n\n"
-                  "Puedes descargar la nueva versión manualmente desde GitHub Releases."),
+                _("La actualización automática en caliente está diseñada para el ejecutable empaquetado de TelegramAccess (TelegramAccess.exe).\n\n"
+                  "Para probar la actualización completa con descarga, sonido de espera e instalación desatendida, abre el ejecutable en 'dist/TelegramAccess/TelegramAccess.exe'."),
                 _("Versión no empaquetada")
             )
             return

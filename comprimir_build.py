@@ -121,7 +121,7 @@ def main():
         "size": tam_bytes,
         "sha256": sha256_hash,
         "url": f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/download/v{version}/{zip_nombre}",
-        "notes": f"Actualización de TelegramAccess v{version} para Windows con sistema accesible de llamadas, grabador y sonido de espera."
+        "notes": f"Actualización de TelegramAccess v{version}: Menú contextual optimizado con caché instantánea, controles de reproducción multimedia (F1-F4, F7-F10, Shift+Flechas), verbalización M:SS de posición y duración, y corrección en el inicio del núcleo."
     }
 
     json_destino.write_text(json.dumps(manifiesto, indent=4, ensure_ascii=False), encoding="utf-8")
