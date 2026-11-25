@@ -52,6 +52,48 @@ def _copiar(texto: str) -> bool:
         wx.TheClipboard.Close()
 
 
+def forzar_primer_plano(window):
+    """Fuerza a la ventana a situarse en el primer plano absoluto del sistema operativo,
+    superando las restricciones de cambio de foco de Windows Explorer u otras aplicaciones."""
+    if not window:
+        return
+    try:
+        window.Raise()
+        window.SetFocus()
+    except Exception:
+        pass
+
+    import sys
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            hwnd = window.GetHandle()
+            if hwnd:
+                user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                fg_hwnd = user32.GetForegroundWindow()
+                if fg_hwnd and fg_hwnd != hwnd:
+                    fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None)
+                    curr_thread = kernel32.GetCurrentThreadId()
+                    if fg_thread and fg_thread != curr_thread:
+                        user32.AttachThreadInput(curr_thread, fg_thread, True)
+                        user32.SetForegroundWindow(hwnd)
+                        user32.BringWindowToTop(hwnd)
+                        user32.SwitchToThisWindow(hwnd, True)
+                        user32.AttachThreadInput(curr_thread, fg_thread, False)
+                    else:
+                        user32.SetForegroundWindow(hwnd)
+                        user32.BringWindowToTop(hwnd)
+                        user32.SwitchToThisWindow(hwnd, True)
+                else:
+                    user32.SetForegroundWindow(hwnd)
+                    user32.BringWindowToTop(hwnd)
+                    user32.SwitchToThisWindow(hwnd, True)
+        except Exception as e:
+            log.debug(f"Aviso al forzar primer plano Win32: {e}")
+
+
 def registrar():
     registrar_interfaz(
         "wx",

@@ -321,6 +321,9 @@ def _crear_script_windows(ruta_base, ruta_temp, ruta_zip):
         ":: Relanzar la aplicación con la versión nueva\r\n"
         f"{comando_relanzar()}\r\n"
         "\r\n"
+        ":: Forzar activación en primer plano de TelegramAccess tras el inicio\r\n"
+        'start "" /B powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -Command "Start-Sleep -Milliseconds 600; $w = New-Object -ComObject WScript.Shell; $w.AppActivate(\'TelegramAccess\')"\r\n'
+        "\r\n"
         ":: Detener el sonido de espera eliminando el archivo testigo\r\n"
         f'del /q "{lock_path}" >nul 2>&1\r\n'
         'del "%~f0" >nul 2>&1\r\n'

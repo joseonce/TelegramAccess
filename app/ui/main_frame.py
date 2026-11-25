@@ -75,7 +75,28 @@ class MainFrame(wx.Frame):
         if config.get("general", "check_updates_on_start", True):
             wx.CallLater(4000, lambda: self._on_buscar_actualizaciones(silencioso=True))
 
+        # Asegurar que la ventana tome primer plano y foco inicial en los chats
+        wx.CallLater(150, self.poner_foco_inicial)
+        wx.CallLater(500, self.poner_foco_inicial)
+
         self.Bind(wx.EVT_CLOSE, self._on_close)
+
+    def poner_foco_inicial(self):
+        """Asigna el foco y pasa la aplicación al primer plano."""
+        try:
+            from app.ui.wx_plataforma import forzar_primer_plano
+            forzar_primer_plano(self)
+        except Exception:
+            pass
+
+        if hasattr(self, "lista_items") and self.lista_items:
+            self.lista_items.SetFocus()
+            if self.lista_items.GetItemCount() > 0:
+                if self.lista_items.GetSelectedItemCount() == 0:
+                    self.lista_items.Select(0)
+                    self.lista_items.Focus(0)
+        elif hasattr(self, "tree_nav") and self.tree_nav:
+            self.tree_nav.SetFocus()
 
     def _init_ui(self):
         panel = wx.Panel(self)
@@ -572,6 +593,10 @@ class MainFrame(wx.Frame):
             total_chats = len(rows)
             self.status_bar.SetStatusText(f"Mostrando {total_chats} chats.", 0)
             self.status_bar.SetStatusText(f"Cuenta ID: {self.active_account_id}", 1)
+
+            if total_chats > 0 and self.lista_items.GetSelectedItemCount() == 0:
+                self.lista_items.Select(0)
+                self.lista_items.Focus(0)
         finally:
             self.lista_items.Thaw()
 

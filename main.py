@@ -83,6 +83,13 @@ def main():
     iniciar_en_bandeja = config.get("general", "start_minimized", False)
     if not iniciar_en_bandeja:
         frame.Show(True)
+        try:
+            from app.ui.wx_plataforma import forzar_primer_plano
+            forzar_primer_plano(frame)
+        except Exception:
+            pass
+        wx.CallLater(150, lambda: frame.poner_foco_inicial())
+        wx.CallLater(600, lambda: frame.poner_foco_inicial())
 
     if config.get("general", "ready_sound", True):
         sound_manager.reproducir("ready")
